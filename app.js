@@ -16,7 +16,7 @@ const imageScheme = new mongoose.Schema({
   imgUrl : String
 })
 
-const Picture = mongoose.model('Picture', imageScheme)
+let Picture = mongoose.model('Picture', imageScheme)
 
 app.set('views', path.join(__dirname, 'views'))
 app.set('view engine', 'ejs')
@@ -30,11 +30,14 @@ app.get('/upload', (req, res) => {
 
 
 app.get('/', (req, res) => {
-  Picture.find({}).then(images => {res.render('index', {images : images})})
+  Picture.find({})
+         .then(images => {
+                          res.render('index', {images : images})
+                          })
 })
 
 // Set Image Storage
-const storage = multer.diskStorage({
+let storage = multer.diskStorage({
   destination: './public/uploads/images/',
   filename : (req, file, cb) => {
     cb(null, file.originalname)
@@ -49,8 +52,8 @@ let upload = multer({
 })
 
 let checkFileType = (file, cb) => {
-  let fileTypes = /jpeg|jpg|png|gif/
-  let extname = fileTypes.test(path.extname(file.originalname).toLocaleLowerCase())
+  const fileTypes = /jpeg|jpg|png|gif/
+  const extname = fileTypes.test(path.extname(file.originalname).toLocaleLowerCase())
 
   if(extname){
     return cb(null, true)
@@ -85,5 +88,33 @@ app.post('/uploadsingle', upload.single('singleImage'), (req, res, next) => {
                       {
                         return console.log('ERROR: '+error)
                       })
+})
+
+app.post('/uploadmultiple', upload.array('multipleImages'), (req, res, next) => {
+
+  const files = req.files
+
+  if(!files){
+    return console.log('Please select images')
+  }
+
+  files.forEach(file => {
+    let url = file.path.replace('public', '')
+
+    Picture
+          .findOne({imgUrl : url})
+          .then(async img => {
+                  if(img){
+
+                    return console.log('Duplicate Image.')
+                  }
+                  await Picture.create({imgUrl : url})
+                })
+          .catch(error => {
+            return console.log('ERROR: ' +error)
+          })
+
+  })
+      res.redirect('/')
 })
 app.listen(3000, () => console.log("Server is started"))
